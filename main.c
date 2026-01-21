@@ -10,7 +10,7 @@
 #define INPUT_BUFFER_SIZE 100
 #define MAX_ARGS 10
 
-int callUnixFunc(int argc, char** argv) {
+void callUnixFunc(int argc, char** argv) {
 
     pid_t child_pid, wpid;
     int status = 0;
@@ -55,7 +55,6 @@ int main() {
     //TODO input_buffer (?) and argv(!!) are not ever memset or reset between commands
         //this does not seem to matter? running ls -lah then ls with no or fewer args gives correct results
     
-    printf("seashell version 2 running");
     while (1) {
         printf("Seashell ~ ");
         //fgets reads from stdin and writes to input_buffer
@@ -96,12 +95,6 @@ int main() {
             //now do different things depending on what argv[0] is
             //this would be much easier if we only supported unix but i am writing this on a windows machine
             //so have it do different things based on the OS but with the same seashell command
-
-            #if PLATFORM_UNIX
-                pid_t child_pid, wpid;
-                int status = 0;
-                int exitStatus = -1;
-            #endif
 
             // ls
             if (strcmp(argv[0], "ls") == 0) {
@@ -157,8 +150,9 @@ int main() {
     }
 
     //todo:
-    //cannot run mkdir then cd into that folder
-    // up arrow key support
+    //cannot run mkdir then cd into that folder - does cd work at all?
+    //up arrow key support
+    //  -> keep buffer of some amount of argc and argv's, cycle through them if you press up arrow
 
     //amazingly within this program you can delete the binary for it, recompile with gcc, and run it with ./main
     //can you edit the source code of this program from inside it ???? then recompile ?
