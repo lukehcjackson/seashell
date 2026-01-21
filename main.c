@@ -28,7 +28,7 @@ void callUnixFunc(int argc, char** argv) {
 
     //need to wait here for the child process to finish
     while ((wpid = wait(&status)) > 0);
-    //could do some nice handling of newlines - if the last line in stdout is not empty / a newline, print one?
+    //todo: could do some nice handling of newlines - if the last line in stdout is not empty / a newline, print one?
 }
 
 int main() {
@@ -77,11 +77,21 @@ int main() {
             if (strcmp(argv[0], "cd") == 0) {
                 if (argc < 2) {
                     fprintf(stderr, "cd: missing operand\n");
-                } else if (chdir(argv[1]) != 0) {
-                    perror("cd");
+                } else if (chdir(argv[1]) != 0) { //chdir returns 0 on success
+                    perror("cd"); //use perror here because chdir is a syscall, and so modifies errno on failure -> perror uses this to give a descriptive error message
                 }
-                continue;
+                //todo: change 'Seashell:' to show the current directory we are in
             } 
+
+            else if (strcmp(argv[0], "pwd") == 0) {
+                char pwd_buffer[1024];
+
+                if (getcwd(pwd_buffer, sizeof(pwd_buffer)) == NULL) { //getcwd returns non-null on success
+                    perror("pwd");
+                } else {
+                    puts(pwd_buffer);
+                }
+            }
 
             else {
                 callUnixFunc(argc, argv);
@@ -90,14 +100,14 @@ int main() {
     }
 
     //todo:
-    //cannot run mkdir then cd into that folder - does cd work at all?
     //cannot touch test.txt then cat main.c > test.txt
-    //the internal file system is not being updated as we run these commands, even though the
-    //files we create this way DO exist on the filesystem
 
     //cd is a 'builtin' so cannot run in a child process
     // >, <, | will not work because i have not implemented that - the shell does the piping not the base command run with execvp
 
+
+    //support all builtins that i want to
+    //implement piping
     //up arrow key support
     //  -> keep buffer of some amount of argc and argv's, cycle through them if you press up arrow
 
