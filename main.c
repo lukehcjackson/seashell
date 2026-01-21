@@ -1,9 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef _WIN32
-    #include <process.h>
-#endif
 #include <unistd.h>
 #include <sys/wait.h>
 
@@ -27,12 +24,10 @@ void callUnixFunc(int argc, char** argv) {
             fprintf(stderr, "\n");
             exit(1);
         }
-
     }
 
     //need to wait here for the child process to finish
     while ((wpid = wait(&status)) > 0);
-
 }
 
 int main() {
@@ -40,14 +35,6 @@ int main() {
     //display a command prompt interface
     //allow a user to enter text to stdin
     //parse that text and do what they ask for
-
-    #ifdef _WIN32
-        #define PLATFORM_WINDOWS  1
-        #define PLATFORM_UNIX     0
-    #else
-        #define PLATFORM_WINDOWS  0
-        #define PLATFORM_UNIX     1
-    #endif
 
     char input_buffer[INPUT_BUFFER_SIZE];
     char* argv[MAX_ARGS];
@@ -85,66 +72,7 @@ int main() {
             //for execvp argv must be null terminated
             argv[argc] = NULL;
 
-            /*
-            for (int i = 0; i < argc; i++) {
-                puts(argv[i]);
-            }
-            */
-            
-
-            //now do different things depending on what argv[0] is
-            //this would be much easier if we only supported unix but i am writing this on a windows machine
-            //so have it do different things based on the OS but with the same seashell command
-
-            // ls
-            if (strcmp(argv[0], "ls") == 0) {
-
-                //argument validation
-                //ls [flags]
-                //for a unix system we can just pass that as is, on windows we need to translate between unix flags and windows flags
-
-                #if PLATFORM_UNIX
-
-                    //todo correctly handle ls argument order: ls [args] [file(s)]
-                    //do i even need to do this? when you type the command into the shell we assume you know what the args are
-                    //and if you give them wrong then we just return the normal exit code / msg ?
-
-                    callUnixFunc(argc, argv);
-
-                #endif
-
-                #if PLATFORM_WINDOWS
-
-                    printf("windows ls");
-
-                    //TODO
-                    //to run anything from the windows command line you need to use MSVC
-                    // => spend a day configuring a new C compiler
-
-                #endif
-            }
-
-            else if (strcmp(argv[0], "cat") == 0) {
-
-                #if PLATFORM_UNIX
-
-                    callUnixFunc(argc, argv);
-                    printf("\n");
-
-                #endif
-
-                #if PLATFORM_WINDOWS
-                    printf("windows placeholder");
-                #endif
-
-            }
-
-            else {
-                //just for a laugh run any unix command because this is completely function agnostic at the moment
-                #if PLATFORM_UNIX
-                    callUnixFunc(argc, argv);
-                #endif
-            }
+            callUnixFunc(argc, argv);
 
         }
     }
