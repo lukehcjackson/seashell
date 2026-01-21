@@ -17,11 +17,11 @@ void callUnixFunc(int argc, char** argv) {
         exitStatus = execvp(argv[0], argv);
 
         if (exitStatus == -1) {
-            fprintf(stderr, "COMMAND %s FAILED WITH ARGS: ", argv[0]);
+            fprintf(stderr, "\x1b[31mCOMMAND %s FAILED WITH ARGS: ", argv[0]);
             for (int i = 0; i < argc; i++) {
                 fprintf(stderr, "%s ", argv[i]);
             }
-            fprintf(stderr, "\n");
+            fprintf(stderr, "\x1b[0m\n");
             exit(1);
         }
     }
@@ -44,7 +44,7 @@ int main() {
         //this does not seem to matter? running ls -lah then ls with no or fewer args gives correct results
     
     while (1) {
-        printf("Seashell ~ ");
+        printf("\x1b[36mSeashell ~ \x1b[0m");
         //fgets reads from stdin and writes to input_buffer
         //TODO: handle buffer overflow
         if (fgets(input_buffer, sizeof input_buffer, stdin) != NULL) {
@@ -76,7 +76,7 @@ int main() {
             //handle builtins
             if (strcmp(argv[0], "cd") == 0) {
                 if (argc < 2) {
-                    fprintf(stderr, "cd: missing operand\n");
+                    fprintf(stderr, "\x1b[31mcd: missing operand\x1b[0m\n");
                 } else if (chdir(argv[1]) != 0) { //chdir returns 0 on success
                     perror("cd"); //use perror here because chdir is a syscall, and so modifies errno on failure -> perror uses this to give a descriptive error message
                 }
@@ -106,10 +106,12 @@ int main() {
     // >, <, | will not work because i have not implemented that - the shell does the piping not the base command run with execvp
 
 
-    //support all builtins that i want to
+    //support all builtins that i want to - 'if a command needs to change the shell's state it must be a builtin'
     //implement piping
     //up arrow key support
     //  -> keep buffer of some amount of argc and argv's, cycle through them if you press up arrow
+    //does execvp support any installed commands? if i install cowsay, lolcat (probably not), etc does it work?
+    //colours in the output ???
 
     //amazingly within this program you can delete the binary for it, recompile with gcc, and run it with ./main
     //can you edit the source code of this program from inside it ???? then recompile ?
