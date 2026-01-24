@@ -1,119 +1,26 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/wait.h>
-
-#define INPUT_BUFFER_SIZE 100
-#define MAX_ARGS 10
-#define MAX_PATH_LENGTH 1024
-
-void callUnixFunc(int argc, char** argv) {
-
-    pid_t child_pid, wpid;
-    int status = 0;
-    int exitStatus = -1;
-
-    if ((child_pid = fork()) == 0) {
-        exitStatus = execvp(argv[0], argv);
-
-        if (exitStatus == -1) {
-            fprintf(stderr, "\x1b[31mCOMMAND %s FAILED WITH ARGS: ", argv[0]);
-            for (int i = 0; i < argc; i++) {
-                fprintf(stderr, "%s ", argv[i]);
-            }
-            fprintf(stderr, "\x1b[0m\n");
-            exit(1);
-        }
-    }
-
-    //need to wait here for the child process to finish
-    while ((wpid = wait(&status)) > 0);
-    //todo: could do some nice handling of newlines - if the last line in stdout is not empty / a newline, print one?
-}
-
-void getCwdFromShell(char** parts) {
-    char pwd_buffer[MAX_PATH_LENGTH];
-
-    if (getcwd(pwd_buffer, sizeof(pwd_buffer)) == NULL) { //getcwd returns non-null on success
-        fprintf(stderr, "\x1b[31mINTERNAL PWD FAILED");
-        perror("pwd");
-    } else {
-        //have whole working directory in pwd_buffer
-        //want to trim this path to /seashell/.../.../.../
-        //and change the output at the start of a new command entry to reflect this
-
-        char* tok = strtok(pwd_buffer, "/");
-        while (tok != NULL && (strcmp(tok, "seashell") != 0)) {
-            tok = strtok(NULL, "/");
-        }
-
-        if (tok == NULL) {
-            //did not find 'seashell' in the path
-            //this is fragile to the user renaming the git directory name
-            //todo: better to find the base path on startup
-            return;
-        }
-
-        //tok points to seashell so advance once more
-        tok = strtok(NULL, "/");
-
-        //char* parts[1024];
-        int i = 0;
-        while (tok != NULL) {
-            parts[i] = tok;
-            i++;
-            tok = strtok(NULL, "/");
-        }
-
-        parts[i] = NULL;
-    }
-}
-
-void showMeAShell(int shell) {
-
-    printf("\x1b[94m");
-    fflush(stdout);
-
-    char* shellFile;
-    if (shell == 1) {
-        shellFile = "shell.txt";
-    } else {
-        shellFile = "shell2.txt";
-    }
-
-    char* tmpArgs[] = {
-        "cat",
-        shellFile,
-        NULL
-    };
-
-    callUnixFunc(2, tmpArgs);
-
-    printf("\x1b[0m");
-}
+#include "seashell.h"
 
 int main() {
-    
-    //display a command prompt interface
-    //allow a user to enter text to stdin
-    //parse that text and do what they ask for
 
     char input_buffer[INPUT_BUFFER_SIZE];
     char* argv[MAX_ARGS];
 
+    char basePath[MAX_PATH_LENGTH];
     char* pathParts[MAX_PATH_LENGTH];
+
+    getBasePath(basePath, sizeof(basePath));
     
     //TODO input_buffer (?) and argv(!!) are not ever memset or reset between commands
         //this does not seem to matter? running ls -lah then ls with no or fewer args gives correct results
 
     while (1) {
 
-        printf("\x1b[36mSeashell");
+        //display Seashell/dir1/dir2 ~ 
+        printf(COLOUR_CYAN "Seashell");
         for (int i = 0; pathParts[i] != NULL; i++) {
             printf("/%s", pathParts[i]);
         }
-        printf(" ~ \x1b[0m");
+        printf(" ~ " COLOUR_RESET);
 
         //fgets reads from stdin and writes to input_buffer
         //TODO: handle buffer overflow
@@ -122,17 +29,13 @@ int main() {
             //fgets includes the newline we use to finish the input
             //trim it by searching for \n in the input buffer and replacing it with a null terminator
             input_buffer[strcspn(input_buffer, "\n")] = '\0';
-            //now that \n is \0, strlen works properly
-            size_t len = strlen(input_buffer);
 
             //parse the input: split by spaces
             //use strtok to tokenise it
-
             char* tok = strtok(input_buffer, " ");
             //now each call to strtok(NULL, " ") returns the pointer to the next token (word) or NULL if there are none left
 
             int argc = 0;
-
             //fill argv with tokens - i.e. words that we have entered into the shell
             while (tok != NULL) {
                 argv[argc] = tok;
@@ -143,7 +46,7 @@ int main() {
             //for execvp argv must be null terminated
             argv[argc] = NULL;
 
-            //custom functions
+            // --------  CUSTOM FUNCTIONS ---------
             if (strcmp(argv[0], "shell") == 0) {
                 showMeAShell(2);
             }
@@ -152,16 +55,18 @@ int main() {
                 showMeAShell(1);
             }
 
-            //handle builtins
+            //--------- BUILTINS -----------
+            //cd
             else if (strcmp(argv[0], "cd") == 0) {
                 if (argc < 2) {
-                    fprintf(stderr, "\x1b[31mcd: missing operand\x1b[0m\n");
+                    fprintf(stderr, COLOUR_RED "cd: missing operand\n" COLOUR_RESET);
                 } else if (chdir(argv[1]) != 0) { //chdir returns 0 on success
                     perror("cd"); //use perror here because chdir is a syscall, and so modifies errno on failure -> perror uses this to give a descriptive error message
                 }
-                getCwdFromShell(pathParts);
+                getCwdFromShell(pathParts, basePath);
             } 
 
+            //pwd
             else if (strcmp(argv[0], "pwd") == 0) {
                 char pwd_buffer[MAX_PATH_LENGTH];
 
@@ -172,6 +77,7 @@ int main() {
                 }
             }
 
+            // ----------- OTHER FUNCTIONS -----------
             else {
                 callUnixFunc(argc, argv);
             }
@@ -183,6 +89,7 @@ int main() {
 
     //cd is a 'builtin' so cannot run in a child process
     // >, <, | will not work because i have not implemented that - the shell does the piping not the base command run with execvp
+    // other redirects? >> << ... (?)
 
     //support all builtins that i want to - 'if a command needs to change the shell's state it must be a builtin'
     //implement piping
@@ -191,6 +98,9 @@ int main() {
     //how do you do tab autocomplete?? 'complete' in bash
     //  -> up arrow support and tab autocomplete rely on using character-by-character input instead of line-by-line
     //custom commands - custom version of something like neofetch and draw a blue ascii shell ??
+
+    //cat with no args hangs forever
+    //shell only works in root directory - either warn the user or redirect -> execute -> redirect back
 
     return 0;
 }
