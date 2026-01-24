@@ -1,14 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef _WIN32
-    #include <process.h>
-#endif
 #include <unistd.h>
 #include <sys/wait.h>
 
 #define INPUT_BUFFER_SIZE 100
 #define MAX_ARGS 10
+#define MAX_PATH_LENGTH 1024
 
 void callUnixFunc(int argc, char** argv) {
 
@@ -20,19 +18,79 @@ void callUnixFunc(int argc, char** argv) {
         exitStatus = execvp(argv[0], argv);
 
         if (exitStatus == -1) {
-            fprintf(stderr, "COMMAND %s FAILED WITH ARGS: ", argv[0]);
+            fprintf(stderr, "\x1b[31mCOMMAND %s FAILED WITH ARGS: ", argv[0]);
             for (int i = 0; i < argc; i++) {
                 fprintf(stderr, "%s ", argv[i]);
             }
-            fprintf(stderr, "\n");
+            fprintf(stderr, "\x1b[0m\n");
             exit(1);
         }
-
     }
 
     //need to wait here for the child process to finish
     while ((wpid = wait(&status)) > 0);
+    //todo: could do some nice handling of newlines - if the last line in stdout is not empty / a newline, print one?
+}
 
+void getCwdFromShell(char** parts) {
+    char pwd_buffer[MAX_PATH_LENGTH];
+
+    if (getcwd(pwd_buffer, sizeof(pwd_buffer)) == NULL) { //getcwd returns non-null on success
+        fprintf(stderr, "\x1b[31mINTERNAL PWD FAILED");
+        perror("pwd");
+    } else {
+        //have whole working directory in pwd_buffer
+        //want to trim this path to /seashell/.../.../.../
+        //and change the output at the start of a new command entry to reflect this
+
+        char* tok = strtok(pwd_buffer, "/");
+        while (tok != NULL && (strcmp(tok, "seashell") != 0)) {
+            tok = strtok(NULL, "/");
+        }
+
+        if (tok == NULL) {
+            //did not find 'seashell' in the path
+            //this is fragile to the user renaming the git directory name
+            //todo: better to find the base path on startup
+            return;
+        }
+
+        //tok points to seashell so advance once more
+        tok = strtok(NULL, "/");
+
+        //char* parts[1024];
+        int i = 0;
+        while (tok != NULL) {
+            parts[i] = tok;
+            i++;
+            tok = strtok(NULL, "/");
+        }
+
+        parts[i] = NULL;
+    }
+}
+
+void showMeAShell(int shell) {
+
+    printf("\x1b[94m");
+    fflush(stdout);
+
+    char* shellFile;
+    if (shell == 1) {
+        shellFile = "shell.txt";
+    } else {
+        shellFile = "shell2.txt";
+    }
+
+    char* tmpArgs[] = {
+        "cat",
+        shellFile,
+        NULL
+    };
+
+    callUnixFunc(2, tmpArgs);
+
+    printf("\x1b[0m");
 }
 
 int main() {
@@ -41,22 +99,22 @@ int main() {
     //allow a user to enter text to stdin
     //parse that text and do what they ask for
 
-    #ifdef _WIN32
-        #define PLATFORM_WINDOWS  1
-        #define PLATFORM_UNIX     0
-    #else
-        #define PLATFORM_WINDOWS  0
-        #define PLATFORM_UNIX     1
-    #endif
-
     char input_buffer[INPUT_BUFFER_SIZE];
     char* argv[MAX_ARGS];
+
+    char* pathParts[MAX_PATH_LENGTH];
     
     //TODO input_buffer (?) and argv(!!) are not ever memset or reset between commands
         //this does not seem to matter? running ls -lah then ls with no or fewer args gives correct results
-    
+
     while (1) {
-        printf("Seashell ~ ");
+
+        printf("\x1b[36mSeashell");
+        for (int i = 0; pathParts[i] != NULL; i++) {
+            printf("/%s", pathParts[i]);
+        }
+        printf(" ~ \x1b[0m");
+
         //fgets reads from stdin and writes to input_buffer
         //TODO: handle buffer overflow
         if (fgets(input_buffer, sizeof input_buffer, stdin) != NULL) {
@@ -85,78 +143,54 @@ int main() {
             //for execvp argv must be null terminated
             argv[argc] = NULL;
 
-            /*
-            for (int i = 0; i < argc; i++) {
-                puts(argv[i]);
-            }
-            */
-            
-
-            //now do different things depending on what argv[0] is
-            //this would be much easier if we only supported unix but i am writing this on a windows machine
-            //so have it do different things based on the OS but with the same seashell command
-
-            // ls
-            if (strcmp(argv[0], "ls") == 0) {
-
-                //argument validation
-                //ls [flags]
-                //for a unix system we can just pass that as is, on windows we need to translate between unix flags and windows flags
-
-                #if PLATFORM_UNIX
-
-                    //todo correctly handle ls argument order: ls [args] [file(s)]
-                    //do i even need to do this? when you type the command into the shell we assume you know what the args are
-                    //and if you give them wrong then we just return the normal exit code / msg ?
-
-                    callUnixFunc(argc, argv);
-
-                #endif
-
-                #if PLATFORM_WINDOWS
-
-                    printf("windows ls");
-
-                    //TODO
-                    //to run anything from the windows command line you need to use MSVC
-                    // => spend a day configuring a new C compiler
-
-                #endif
+            //custom functions
+            if (strcmp(argv[0], "shell") == 0) {
+                showMeAShell(2);
             }
 
-            else if (strcmp(argv[0], "cat") == 0) {
+            else if (strcmp(argv[0], "bigshell") == 0) {
+                showMeAShell(1);
+            }
 
-                #if PLATFORM_UNIX
+            //handle builtins
+            else if (strcmp(argv[0], "cd") == 0) {
+                if (argc < 2) {
+                    fprintf(stderr, "\x1b[31mcd: missing operand\x1b[0m\n");
+                } else if (chdir(argv[1]) != 0) { //chdir returns 0 on success
+                    perror("cd"); //use perror here because chdir is a syscall, and so modifies errno on failure -> perror uses this to give a descriptive error message
+                }
+                getCwdFromShell(pathParts);
+            } 
 
-                    callUnixFunc(argc, argv);
-                    printf("\n");
+            else if (strcmp(argv[0], "pwd") == 0) {
+                char pwd_buffer[MAX_PATH_LENGTH];
 
-                #endif
-
-                #if PLATFORM_WINDOWS
-                    printf("windows placeholder");
-                #endif
-
+                if (getcwd(pwd_buffer, sizeof(pwd_buffer)) == NULL) { //getcwd returns non-null on success
+                    perror("pwd");
+                } else {
+                    puts(pwd_buffer);
+                }
             }
 
             else {
-                //just for a laugh run any unix command because this is completely function agnostic at the moment
-                #if PLATFORM_UNIX
-                    callUnixFunc(argc, argv);
-                #endif
+                callUnixFunc(argc, argv);
             }
-
         }
     }
 
     //todo:
-    //cannot run mkdir then cd into that folder - does cd work at all?
+    //cannot touch test.txt then cat main.c > test.txt
+
+    //cd is a 'builtin' so cannot run in a child process
+    // >, <, | will not work because i have not implemented that - the shell does the piping not the base command run with execvp
+
+    //support all builtins that i want to - 'if a command needs to change the shell's state it must be a builtin'
+    //implement piping
     //up arrow key support
     //  -> keep buffer of some amount of argc and argv's, cycle through them if you press up arrow
-
-    //amazingly within this program you can delete the binary for it, recompile with gcc, and run it with ./main
-    //can you edit the source code of this program from inside it ???? then recompile ?
-    //YES YOU CAN !
+    //how do you do tab autocomplete?? 'complete' in bash
+    //  -> up arrow support and tab autocomplete rely on using character-by-character input instead of line-by-line
+    //custom commands - custom version of something like neofetch and draw a blue ascii shell ??
 
     return 0;
 }
