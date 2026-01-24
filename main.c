@@ -6,6 +6,7 @@
 
 #define INPUT_BUFFER_SIZE 100
 #define MAX_ARGS 10
+#define MAX_PATH_LENGTH 1024
 
 void callUnixFunc(int argc, char** argv) {
 
@@ -32,7 +33,7 @@ void callUnixFunc(int argc, char** argv) {
 }
 
 void getCwdFromShell(char** parts) {
-    char pwd_buffer[1024];
+    char pwd_buffer[MAX_PATH_LENGTH];
 
     if (getcwd(pwd_buffer, sizeof(pwd_buffer)) == NULL) { //getcwd returns non-null on success
         fprintf(stderr, "\x1b[31mINTERNAL PWD FAILED");
@@ -66,11 +67,30 @@ void getCwdFromShell(char** parts) {
         }
 
         parts[i] = NULL;
-
-        //for (int j = 0; j < i; j++) {
-        //    puts(parts[j]);
-        //}
     }
+}
+
+void showMeAShell(int shell) {
+
+    printf("\x1b[36m");
+    fflush(stdout);
+
+    char* shellFile;
+    if (shell == 1) {
+        shellFile = "shell.txt";
+    } else {
+        shellFile = "shell2.txt";
+    }
+
+    char* tmpArgs[] = {
+        "cat",
+        shellFile,
+        NULL
+    };
+
+    callUnixFunc(2, tmpArgs);
+
+    printf("\x1b[0m");
 }
 
 int main() {
@@ -82,7 +102,7 @@ int main() {
     char input_buffer[INPUT_BUFFER_SIZE];
     char* argv[MAX_ARGS];
 
-    char* pathParts[1024];
+    char* pathParts[MAX_PATH_LENGTH];
     
     //TODO input_buffer (?) and argv(!!) are not ever memset or reset between commands
         //this does not seem to matter? running ls -lah then ls with no or fewer args gives correct results
@@ -123,25 +143,27 @@ int main() {
             //for execvp argv must be null terminated
             argv[argc] = NULL;
 
+            //custom functions
+            if (strcmp(argv[0], "shell") == 0) {
+                showMeAShell(2);
+            }
+
+            else if (strcmp(argv[0], "bigshell") == 0) {
+                showMeAShell(1);
+            }
+
             //handle builtins
-            if (strcmp(argv[0], "cd") == 0) {
+            else if (strcmp(argv[0], "cd") == 0) {
                 if (argc < 2) {
                     fprintf(stderr, "\x1b[31mcd: missing operand\x1b[0m\n");
                 } else if (chdir(argv[1]) != 0) { //chdir returns 0 on success
                     perror("cd"); //use perror here because chdir is a syscall, and so modifies errno on failure -> perror uses this to give a descriptive error message
                 }
-                //todo: change 'Seashell:' to show the current directory we are in
                 getCwdFromShell(pathParts);
-
-                //int a = 0;
-                //while (pathParts[a] != NULL) {
-                //    puts(pathParts[a]);
-                //    a++;
-                //}
             } 
 
             else if (strcmp(argv[0], "pwd") == 0) {
-                char pwd_buffer[1024];
+                char pwd_buffer[MAX_PATH_LENGTH];
 
                 if (getcwd(pwd_buffer, sizeof(pwd_buffer)) == NULL) { //getcwd returns non-null on success
                     perror("pwd");
@@ -162,17 +184,13 @@ int main() {
     //cd is a 'builtin' so cannot run in a child process
     // >, <, | will not work because i have not implemented that - the shell does the piping not the base command run with execvp
 
-
     //support all builtins that i want to - 'if a command needs to change the shell's state it must be a builtin'
     //implement piping
     //up arrow key support
     //  -> keep buffer of some amount of argc and argv's, cycle through them if you press up arrow
-    //does execvp support any installed commands? if i install cowsay, lolcat (probably not), etc does it work?
-    //colours in the output ???
-
-    //amazingly within this program you can delete the binary for it, recompile with gcc, and run it with ./main
-    //can you edit the source code of this program from inside it ???? then recompile ?
-    //YES YOU CAN !
+    //how do you do tab autocomplete?? 'complete' in bash
+    //  -> up arrow support and tab autocomplete rely on using character-by-character input instead of line-by-line
+    //custom commands - custom version of something like neofetch and draw a blue ascii shell ??
 
     return 0;
 }
