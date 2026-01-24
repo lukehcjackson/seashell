@@ -72,7 +72,7 @@ void getCwdFromShell(char** parts) {
 
 void showMeAShell(int shell) {
 
-    printf("\x1b[36m");
+    printf("\x1b[94m");
     fflush(stdout);
 
     char* shellFile;
@@ -106,7 +106,7 @@ int main() {
     
     //TODO input_buffer (?) and argv(!!) are not ever memset or reset between commands
         //this does not seem to matter? running ls -lah then ls with no or fewer args gives correct results
-    
+
     while (1) {
 
         printf("\x1b[36mSeashell");
