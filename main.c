@@ -134,6 +134,8 @@ int main() {
 //  -> up arrow support and tab autocomplete rely on using character-by-character input instead of line-by-line
 //custom commands - custom version of something like neofetch and draw a blue ascii shell ??
 
-//cat with no args hangs forever
 //shell only works in root directory - either warn the user or redirect -> execute -> redirect back
 //crashes if you just put in whitespace, tabs, spaces, enter key - need to sanitise this input before checking / dereferencing it
+
+
+//next todo: input redirection, handle both input and output redirection on the same line correctly, handle multiple > > and < < on the same line in the right order
