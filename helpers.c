@@ -1,12 +1,32 @@
 #include "seashell.h"
 
-void callUnixFunc(int argc, char** argv) {
+void callUnixFunc(int argc, char** argv, char* output_file) {
 
     pid_t child_pid, wpid;
     int status = 0;
     int exitStatus = -1;
 
     if ((child_pid = fork()) == 0) {
+
+        //----handle stdout output redirection -------
+        if (output_file != NULL) {
+            //instead of writing to stdout, write to a file
+            //write-only, create the file if it doesnt exist, overwrite it if it does exist - 0644 gives permissions to this file
+            int fd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            if (fd < 0) {
+                //failed to open the file
+                fprintf(stderr, COLOUR_RED "FAILED TO OPEN FILE TO REDIRECT OUTPUT");
+                perror("open");
+                fprintf(stderr, COLOUR_RESET "\n");
+                exit(1);
+            }
+
+            //redirect stdout to this file
+            dup2(fd, STDOUT_FILENO);
+            close(fd);
+        }
+
+        //exec
         exitStatus = execvp(argv[0], argv);
 
         if (exitStatus == -1) {
@@ -21,7 +41,6 @@ void callUnixFunc(int argc, char** argv) {
 
     //need to wait here for the child process to finish
     while ((wpid = wait(&status)) > 0);
-    //todo: could do some nice handling of newlines - if the last line in stdout is not empty / a newline, print one?
 }
 
 void getBasePath(char* base, size_t size) {
@@ -109,7 +128,7 @@ void showMeAShell(int shell) {
     };
 
     //output the contents of the shellFile with cat
-    callUnixFunc(2, tmpArgs);
+    callUnixFunc(2, tmpArgs, NULL);
 
     printf(COLOUR_RESET);
 }
