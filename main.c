@@ -31,6 +31,48 @@ void callUnixFunc(int argc, char** argv) {
     //todo: could do some nice handling of newlines - if the last line in stdout is not empty / a newline, print one?
 }
 
+void getCwdFromShell(char** parts) {
+    char pwd_buffer[1024];
+
+    if (getcwd(pwd_buffer, sizeof(pwd_buffer)) == NULL) { //getcwd returns non-null on success
+        fprintf(stderr, "\x1b[31mINTERNAL PWD FAILED");
+        perror("pwd");
+    } else {
+        //have whole working directory in pwd_buffer
+        //want to trim this path to /seashell/.../.../.../
+        //and change the output at the start of a new command entry to reflect this
+
+        char* tok = strtok(pwd_buffer, "/");
+        while (tok != NULL && (strcmp(tok, "seashell") != 0)) {
+            tok = strtok(NULL, "/");
+        }
+
+        if (tok == NULL) {
+            //did not find 'seashell' in the path
+            //this is fragile to the user renaming the git directory name
+            //todo: better to find the base path on startup
+            return;
+        }
+
+        //tok points to seashell so advance once more
+        tok = strtok(NULL, "/");
+
+        //char* parts[1024];
+        int i = 0;
+        while (tok != NULL) {
+            parts[i] = tok;
+            i++;
+            tok = strtok(NULL, "/");
+        }
+
+        parts[i] = NULL;
+
+        //for (int j = 0; j < i; j++) {
+        //    puts(parts[j]);
+        //}
+    }
+}
+
 int main() {
     
     //display a command prompt interface
@@ -39,12 +81,20 @@ int main() {
 
     char input_buffer[INPUT_BUFFER_SIZE];
     char* argv[MAX_ARGS];
+
+    char* pathParts[1024];
     
     //TODO input_buffer (?) and argv(!!) are not ever memset or reset between commands
         //this does not seem to matter? running ls -lah then ls with no or fewer args gives correct results
     
     while (1) {
-        printf("\x1b[36mSeashell ~ \x1b[0m");
+
+        printf("\x1b[36mSeashell");
+        for (int i = 0; pathParts[i] != NULL; i++) {
+            printf("/%s", pathParts[i]);
+        }
+        printf(" ~ \x1b[0m");
+
         //fgets reads from stdin and writes to input_buffer
         //TODO: handle buffer overflow
         if (fgets(input_buffer, sizeof input_buffer, stdin) != NULL) {
@@ -81,6 +131,13 @@ int main() {
                     perror("cd"); //use perror here because chdir is a syscall, and so modifies errno on failure -> perror uses this to give a descriptive error message
                 }
                 //todo: change 'Seashell:' to show the current directory we are in
+                getCwdFromShell(pathParts);
+
+                //int a = 0;
+                //while (pathParts[a] != NULL) {
+                //    puts(pathParts[a]);
+                //    a++;
+                //}
             } 
 
             else if (strcmp(argv[0], "pwd") == 0) {
