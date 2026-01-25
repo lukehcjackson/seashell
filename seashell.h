@@ -18,7 +18,7 @@
 #define COLOUR_CYAN   "\x1b[36m"
 #define COLOUR_BLUE   "\x1b[94m"
 
-void callUnixFunc(int argc, char** argv, char* input_file, char* output_file);
+void callUnixFunc(int argc, char** argv, char* input_file, char* output_file, int appendOutput);
 void getBasePath(char* base, size_t size);
 void getCwdFromShell(char** parts, char* base);
 void showMeAShell(int shell);

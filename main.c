@@ -27,7 +27,6 @@ int main() {
         printf(" ~ " COLOUR_RESET);
 
         //fgets reads from stdin and writes to input_buffer
-        //TODO: handle buffer overflow
         if (fgets(input_buffer, sizeof input_buffer, stdin) == NULL) {
             //handle null => EOF
             continue;
@@ -60,7 +59,7 @@ int main() {
 
         //parse the input: split by spaces
         //use strtok to tokenise it
-        //better to actually split by whitespace in general - robust to a double space (and more)
+        //better to actually split by whitespace in general - robust to tabs
         char* tok = strtok(input_buffer, " \t");
         //now each call to strtok(NULL, " ") returns the pointer to the next token (word) or NULL if there are none left
 
@@ -78,6 +77,7 @@ int main() {
 
         char* input_file = NULL;
         char* output_file = NULL;
+        int appendingOutput = 0;
 
         int write_idx = 0;
 
@@ -98,8 +98,11 @@ int main() {
             }
 
             // OUTPUT REDIRECTION
-            if (strcmp(argv[read_idx], ">") == 0) {
-                if (read_idx + 1 < argc) { //we have seen <, but did the user really give us a file to redirect to?
+            if ((strcmp(argv[read_idx], ">") == 0) || (strcmp(argv[read_idx], ">>") == 0)) {
+                //if we read >>, we are appending instead of overwriting output
+                appendingOutput = (strcmp(argv[read_idx], ">>") == 0) ? 1 : 0;
+
+                if (read_idx + 1 < argc) { //we have seen > / >>, but did the user really give us a file to redirect to?
                     output_file = argv[read_idx+1];
                     read_idx++; //skip the filename
                 } else {
@@ -122,11 +125,23 @@ int main() {
 
         // --------  CUSTOM FUNCTIONS ---------
         if (strcmp(argv[0], "shell") == 0) {
-            showMeAShell(2);
+            //todo: while this is engimatic, this command should obviously probably work from other directories
+            //either move working directory -> root, run command, move back
+            //or maintain a path to the root directory from the current directory and use that in the cat command to print the shell
+            if (pathParts[0] != NULL) {
+                printf(COLOUR_BLUE "You can't move a shell from it's home. Try again from the root directory.\n" COLOUR_RESET);
+            } else {
+                showMeAShell(2);
+            }
+            
         }
 
         else if (strcmp(argv[0], "bigshell") == 0) {
-            showMeAShell(1);
+            if (pathParts[0] != NULL) {
+                printf(COLOUR_BLUE "You can't move a shell from it's home. Try again from the root directory.\n" COLOUR_RESET);
+            } else {
+                showMeAShell(1);
+            }
         }
 
         //--------- BUILTINS -----------
@@ -154,7 +169,7 @@ int main() {
         // ----------- OTHER FUNCTIONS -----------
         else {
 
-            callUnixFunc(argc, argv, input_file, output_file);
+            callUnixFunc(argc, argv, input_file, output_file, appendingOutput);
             
         }
     }
@@ -171,11 +186,13 @@ int main() {
 //  -> keep buffer of some amount of argc and argv's, cycle through them if you press up arrow
 //how do you do tab autocomplete?? 'complete' in bash
 //  -> up arrow support and tab autocomplete rely on using character-by-character input instead of line-by-line
-//custom commands - custom version of something like neofetch and draw a blue ascii shell ??
-
-//shell only works in root directory - either warn the user or redirect -> execute -> redirect back
+//  when i do this, consider the things this current approach is not at all robust to - "", '', escape characters
+//  for instance there is no support right now for echo "hello world" or cd "my folder" or cd this>file.txt
 
 //next todo:
-// x input redirection, 
-// x handle both input and output redirection on the same line correctly,
+//  implement >> append output redirection
+//  do i care about << and <<< ? <> ?
 //  handle multiple > > and < < on the same line in the right order
+//  handle redirecting standard error with &
+
+// | implementation
