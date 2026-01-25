@@ -7,6 +7,7 @@ int main() {
 
     char basePath[MAX_PATH_LENGTH];
     char* pathParts[MAX_PATH_LENGTH];
+    pathParts[0] = NULL;
 
     getBasePath(basePath, sizeof(basePath));
     
@@ -52,12 +53,33 @@ int main() {
         //for execvp argv must be null terminated
         argv[argc] = NULL;
 
+        //---- HANDLE INPUT REDIRECTION ------
+        
+        int input_redirect = 0;
+        char* input_file = NULL;
+
+        for (int i = 0; i < argc; i++) {
+            if (argv[i] == NULL) continue;
+            if (strcmp(argv[i], "<") == 0) {
+                input_redirect = 1;
+                if (i + 1 < argc) { //we have seen <, but did the user give us the file to get input from?
+                    input_file = argv[i+1];
+                } else {
+                    fprintf(stderr, COLOUR_RED "Syntax error: expected file after '<'\n" COLOUR_RESET);
+                }
+
+                argv[i] = NULL;
+                break;
+            }
+        }
+
         //------ HANDLE OUTPUT REDIRECTION --------
 
         int output_redirect = 0;
         char* output_file = NULL;
 
         for (int i = 0; i < argc; i++) {
+            if (argv[i] == NULL) continue;
             if (strcmp(argv[i], ">") == 0) {
                 output_redirect = 1;
                 if (i + 1 < argc) { //we have seen <, but did the user really give us a file to redirect to?
@@ -106,11 +128,7 @@ int main() {
         // ----------- OTHER FUNCTIONS -----------
         else {
 
-            if (output_redirect) {
-                callUnixFunc(argc, argv, output_file);
-            } else {
-                callUnixFunc(argc, argv, NULL);
-            }
+            callUnixFunc(argc, argv, input_file, output_file);
             
         }
     }

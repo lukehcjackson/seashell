@@ -1,6 +1,6 @@
 #include "seashell.h"
 
-void callUnixFunc(int argc, char** argv, char* output_file) {
+void callUnixFunc(int argc, char** argv, char* input_file, char* output_file) {
 
     pid_t child_pid, wpid;
     int status = 0;
@@ -8,12 +8,30 @@ void callUnixFunc(int argc, char** argv, char* output_file) {
 
     if ((child_pid = fork()) == 0) {
 
-        //----handle stdout output redirection -------
+        //---- handle stdin input redirection -------
+        if (input_file != NULL) {
+            //instead of reading from stdin, read in from a file
+            //read-only (do i need file permissions ??)
+            int fd_in = open(input_file, O_RDONLY);
+            if (fd_in < 0) {
+                //failed to open the file
+                fprintf(stderr, COLOUR_RED "FAILED TO OPEN FILE TO REDIRECT INPUT");
+                perror("open");
+                fprintf(stderr, COLOUR_RESET "\n");
+                exit(1);
+            }
+
+            //redirect stdin to this file
+            dup2(fd_in, STDIN_FILENO);
+            close(fd_in);
+        }
+
+        //---- handle stdout output redirection -------
         if (output_file != NULL) {
             //instead of writing to stdout, write to a file
             //write-only, create the file if it doesnt exist, overwrite it if it does exist - 0644 gives permissions to this file
-            int fd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-            if (fd < 0) {
+            int fd_out = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            if (fd_out < 0) {
                 //failed to open the file
                 fprintf(stderr, COLOUR_RED "FAILED TO OPEN FILE TO REDIRECT OUTPUT");
                 perror("open");
@@ -22,8 +40,8 @@ void callUnixFunc(int argc, char** argv, char* output_file) {
             }
 
             //redirect stdout to this file
-            dup2(fd, STDOUT_FILENO);
-            close(fd);
+            dup2(fd_out, STDOUT_FILENO);
+            close(fd_out);
         }
 
         //exec
@@ -128,7 +146,7 @@ void showMeAShell(int shell) {
     };
 
     //output the contents of the shellFile with cat
-    callUnixFunc(2, tmpArgs, NULL);
+    callUnixFunc(2, tmpArgs, NULL, NULL);
 
     printf(COLOUR_RESET);
 }
