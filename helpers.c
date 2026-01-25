@@ -142,8 +142,14 @@ void showMeAShell(int shell) {
     fflush(stdout);
 
     char* shellFile;
-    //can make this a big if statement if we want more than two versions of this shell command
-    shellFile = shell == 1 ? "shell.txt" : "shell2.txt";
+    //if (shell == 0) {
+    //    shellFile = "startup.txt";
+    //} else 
+    if (shell == 1) {
+        shellFile = "shell.txt";
+    } else {
+        shellFile = "shell2.txt";
+    }
 
     char* tmpArgs[] = {
         "cat",

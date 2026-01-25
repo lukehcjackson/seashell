@@ -10,6 +10,8 @@ int main() {
     pathParts[0] = NULL;
 
     getBasePath(basePath, sizeof(basePath));
+
+    showMeAShell(2);
     
     //todo: input_buffer (?) and argv(!!) are not ever memset or reset between commands
         //this does not seem to matter? running ls -lah then ls with no or fewer args gives correct results
@@ -125,7 +127,7 @@ int main() {
 
         // --------  CUSTOM FUNCTIONS ---------
         if (strcmp(argv[0], "shell") == 0) {
-            //todo: while this is engimatic, this command should obviously probably work from other directories
+            //todo: while this is enigmatic, this command should obviously probably work from other directories
             //either move working directory -> root, run command, move back
             //or maintain a path to the root directory from the current directory and use that in the cat command to print the shell
             if (pathParts[0] != NULL) {
@@ -133,7 +135,6 @@ int main() {
             } else {
                 showMeAShell(2);
             }
-            
         }
 
         else if (strcmp(argv[0], "bigshell") == 0) {
@@ -150,7 +151,9 @@ int main() {
             if (argc < 2) {
                 fprintf(stderr, COLOUR_RED "cd: missing operand\n" COLOUR_RESET);
             } else if (chdir(argv[1]) != 0) { //chdir returns 0 on success
+                fprintf(stderr, COLOUR_RED);
                 perror("cd"); //use perror here because chdir is a syscall, and so modifies errno on failure -> perror uses this to give a descriptive error message
+                fprintf(stderr, COLOUR_RESET);
             }
             getCwdFromShell(pathParts, basePath);
         } 
@@ -160,7 +163,9 @@ int main() {
             char pwd_buffer[MAX_PATH_LENGTH];
 
             if (getcwd(pwd_buffer, sizeof(pwd_buffer)) == NULL) { //getcwd returns non-null on success
+                fprintf(stderr, COLOUR_RED);
                 perror("pwd");
+                fprintf(stderr, COLOUR_RESET);
             } else {
                 puts(pwd_buffer);
             }
@@ -174,7 +179,6 @@ int main() {
         }
     }
     
-
     return 0;
 }
 
@@ -188,11 +192,12 @@ int main() {
 //  -> up arrow support and tab autocomplete rely on using character-by-character input instead of line-by-line
 //  when i do this, consider the things this current approach is not at all robust to - "", '', escape characters
 //  for instance there is no support right now for echo "hello world" or cd "my folder" or cd this>file.txt
+//echo hello world does work by happenstance but mkdir "my folder" makes a folder called '"my' and a folder called 'folder"'
+
+//colours in ls output ??
 
 //next todo:
-//  implement >> append output redirection
 //  do i care about << and <<< ? <> ?
-//  handle multiple > > and < < on the same line in the right order
 //  handle redirecting standard error with &
 
 // | implementation
