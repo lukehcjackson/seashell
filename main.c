@@ -29,7 +29,7 @@ int main() {
         //fgets reads from stdin and writes to input_buffer
         //TODO: handle buffer overflow
         if (fgets(input_buffer, sizeof input_buffer, stdin) == NULL) {
-            //handle null
+            //handle null => EOF
             continue;
         }
 
@@ -37,9 +37,31 @@ int main() {
         //trim it by searching for \n in the input buffer and replacing it with a null terminator
         input_buffer[strcspn(input_buffer, "\n")] = '\0';
 
+        //detect buffer overflow
+        size_t input_length = strlen(input_buffer);
+        //if we read the max amount of data and the last character we read is not a delimiter => user entered too much text and it overflowed
+        if ((input_length == sizeof(input_buffer) - 1) && (input_buffer[input_length - 1] != '\0')) {
+            //we know there has been buffer overflow - flush stdin so the start of the next command is not polluted by the end of this one
+            int c;
+            while ((c = getchar()) != '\n' && c != EOF);
+            fprintf(stderr, COLOUR_RED "INPUT TOO LONG\n" COLOUR_RESET);
+            continue;
+        }
+
+        //skip leading whitespace
+        char* p = input_buffer;
+        while (*p && isspace((unsigned char)*p)) {
+            p++;
+        }
+        //is this an empty line / whitespace only line?
+        if (*p == '\0') {
+            continue;
+        }
+
         //parse the input: split by spaces
         //use strtok to tokenise it
-        char* tok = strtok(input_buffer, " ");
+        //better to actually split by whitespace in general - robust to a double space (and more)
+        char* tok = strtok(input_buffer, " \t");
         //now each call to strtok(NULL, " ") returns the pointer to the next token (word) or NULL if there are none left
 
         int argc = 0;
@@ -47,7 +69,7 @@ int main() {
         while (tok != NULL) {
             argv[argc] = tok;
             argc++;
-            tok = strtok(NULL, " ");
+            tok = strtok(NULL, " \t");
         }
 
         //---- HANDLE INPUT AND OUTPUT REDIRECTION -----
@@ -142,14 +164,9 @@ int main() {
 }
 
 //todo:
-//cannot touch test.txt then cat main.c > test.txt
 
-//cd is a 'builtin' so cannot run in a child process
-// >, <, | will not work because i have not implemented that - the shell does the piping not the base command run with execvp
-// other redirects? >> << ... (?)
-
+// other redirects | >> << ... (?)
 //support all builtins that i want to - 'if a command needs to change the shell's state it must be a builtin'
-//implement piping
 //up arrow key support
 //  -> keep buffer of some amount of argc and argv's, cycle through them if you press up arrow
 //how do you do tab autocomplete?? 'complete' in bash
@@ -157,7 +174,8 @@ int main() {
 //custom commands - custom version of something like neofetch and draw a blue ascii shell ??
 
 //shell only works in root directory - either warn the user or redirect -> execute -> redirect back
-//crashes if you just put in whitespace, tabs, spaces, enter key - need to sanitise this input before checking / dereferencing it
 
-
-//next todo: input redirection, handle both input and output redirection on the same line correctly, handle multiple > > and < < on the same line in the right order
+//next todo:
+// x input redirection, 
+// x handle both input and output redirection on the same line correctly,
+//  handle multiple > > and < < on the same line in the right order

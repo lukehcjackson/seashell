@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <fcntl.h>
+#include <ctype.h>
 
 #define INPUT_BUFFER_SIZE 100
 #define MAX_ARGS 10
