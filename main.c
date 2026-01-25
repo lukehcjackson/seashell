@@ -50,49 +50,53 @@ int main() {
             tok = strtok(NULL, " ");
         }
 
-        //for execvp argv must be null terminated
-        argv[argc] = NULL;
+        //---- HANDLE INPUT AND OUTPUT REDIRECTION -----
+        //in doing this, compress argv from ["cat", "<", "input.txt", ">", "output.txt", NULL]
+        //to ["cat", NULL]
 
-        //---- HANDLE INPUT REDIRECTION ------
-        
-        int input_redirect = 0;
         char* input_file = NULL;
+        char* output_file = NULL;
 
-        for (int i = 0; i < argc; i++) {
-            if (argv[i] == NULL) continue;
-            if (strcmp(argv[i], "<") == 0) {
-                input_redirect = 1;
-                if (i + 1 < argc) { //we have seen <, but did the user give us the file to get input from?
-                    input_file = argv[i+1];
+        int write_idx = 0;
+
+        for (int read_idx = 0; read_idx < argc; read_idx++) {
+
+            if (argv[read_idx] == NULL) continue;
+
+            // INPUT REDIRECTION
+            if (strcmp(argv[read_idx], "<") == 0) {
+                if (read_idx + 1 < argc) { //we have seen <, but did the user give us the file to get input from?
+                    input_file = argv[read_idx+1];
+                    read_idx++; //skip the filename that comes after <
                 } else {
                     fprintf(stderr, COLOUR_RED "Syntax error: expected file after '<'\n" COLOUR_RESET);
                 }
 
-                argv[i] = NULL;
-                break;
+                continue;
             }
-        }
 
-        //------ HANDLE OUTPUT REDIRECTION --------
-
-        int output_redirect = 0;
-        char* output_file = NULL;
-
-        for (int i = 0; i < argc; i++) {
-            if (argv[i] == NULL) continue;
-            if (strcmp(argv[i], ">") == 0) {
-                output_redirect = 1;
-                if (i + 1 < argc) { //we have seen <, but did the user really give us a file to redirect to?
-                    output_file = argv[i+1];
+            // OUTPUT REDIRECTION
+            if (strcmp(argv[read_idx], ">") == 0) {
+                if (read_idx + 1 < argc) { //we have seen <, but did the user really give us a file to redirect to?
+                    output_file = argv[read_idx+1];
+                    read_idx++; //skip the filename
                 } else {
                     fprintf(stderr, COLOUR_RED "Syntax error: expected file after '>'\n" COLOUR_RESET);
                 }
 
-                argv[i] = NULL;
-                break;
-
+                continue;
             }
+
+            //normal argument, not < or >
+            //this compresses argv to remove <, >, and the input/output files
+            argv[write_idx] = argv[read_idx];
+            write_idx++;
+
         }
+
+        //ensure argv is null-terminated
+        argv[write_idx] = NULL;
+        argc = write_idx;
 
         // --------  CUSTOM FUNCTIONS ---------
         if (strcmp(argv[0], "shell") == 0) {
